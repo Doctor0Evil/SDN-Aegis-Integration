@@ -1,0 +1,6 @@
+# ALN: SafetyEnvelope parameters (ICNIRP/IEC)
+# sar_mw_per_kg_max, j_ma_per_m2_max, d_ion_max(nSv)
+sar_max_mw_per_kg=2
+j_max_ma_per_m2=10
+d_ion_max_nSv=1000
+# Extend with exposure curves and device classes

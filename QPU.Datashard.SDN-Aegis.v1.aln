@@ -1,0 +1,6 @@
+# QPU.Datashard.SDN-Aegis.v1.aln
+# Fields: vnode_id,role,security,compliance,log_persistence
+# Example:
+# vnode01,Gateway,AES-256,ICNIRP-IEC-2024,local
+vnode01,Gateway,AES-256,ICNIRP-IEC-2024,local
+vnode02,ResearchNode,PQC,ICNIRP-IEC-2024,replicated

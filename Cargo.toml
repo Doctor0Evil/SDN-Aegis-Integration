@@ -1,0 +1,19 @@
+[workspace]
+members = [
+    "sdn-aegis-cli",
+    "crates/aegis-core",
+    "crates/aegis-ledger-auet-csp",
+    "crates/aegis-safety-envelope",
+    "crates/aegis-ava-ma",
+    "crates/aegis-attestation-auet",
+    "crates/aegis-sdn-plane",
+    "crates/aegis-iot-gateway",
+    "crates/aegis-bci-bridge",
+    "crates/aegis-sim-harness",
+]
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3

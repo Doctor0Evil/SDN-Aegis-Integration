@@ -1,0 +1,6 @@
+# ALN: EnergyModel for SDN-Aegis
+# c_E, c_S, d_aln, notes
+c_E=1e-12
+c_S=5e-13
+d_aln=9
+# Further dataset fields and tables to be added
