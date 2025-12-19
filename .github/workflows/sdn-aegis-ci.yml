@@ -1,0 +1,18 @@
+# .github/workflows/sdn-aegis-ci.yml
+name: SDN-Aegis CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --workspace --locked
+      - run: cargo test --workspace --locked
+      - run: cargo test -p aegis-sim-harness --tests
+      - run: cargo run -p sdn-aegis-cli -- blueprint-verify
+      - run: cargo run -p sdn-aegis-cli -- qpu-validate-shard QPU.Datashard.SDN-Aegis.v1.aln
