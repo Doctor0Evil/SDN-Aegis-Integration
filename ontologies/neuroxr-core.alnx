@@ -1,0 +1,171 @@
+// file: ontologies/neuroxr-core.alnx
+// NeuroXR Core Ontology — ALNX Evolution Layer v2
+// Author: Dr. Jacob Scott Farmer ©2025 NeuroXR / Perplexity Labs Inc.
+// Purpose: Defines an evolved ALN syntax with schema introspection, multimodal inference, 
+//          and self-validating semantic operators for Neuro-XR safety governance.
+
+ontology "https://neuroxr.org/ontology/core/v2"
+version "2.0.0"
+import "https://neuroxr.org/ontology/system/meta.alnx"
+license "CC BY-NC-SA 4.0"
+
+meta {
+  namespace_prefix = "neuroxr"
+  serialization_format = "yaml+jsonld"
+  hash_algorithm = "blake3"
+  validated_with = "ALN-CoreValidator-3.1"
+  last_compiled_at = "2025-12-26T19:09:00Z"
+}
+
+// ==========================
+// Advanced datatypes & enums
+// ==========================
+
+datatype Iso8601Duration : string {
+  pattern = "^P(?!$)(\\d+Y)?(\\d+M)?(\\d+W)?(\\d+D)?(T(\\d+H)?(\\d+M)?(\\d+(\\.\\d+)?S)?)?$"
+  serialize meta(duration_cast = "duration()")
+}
+
+datatype NeuroModality : string {
+  pattern = "^(EEG|fMRI|EMG|ECoG|MEG|NIRS|LFP|Spike|Hybrid|OptoNeuro)$"
+  meta(source_ref = "neuroxr:defs:modality-spec")
+}
+
+enum NeuralDataClassification {
+  direct_cns
+  direct_pns
+  inferred_non_neural
+  behavioral
+  synthetic_fusion
+}
+
+enum DataSensitivityTier {
+  low
+  medium
+  high
+  neural
+  critical
+}
+
+enum JurisdictionCode {
+  CO_SB21_190
+  CA_SB1223
+  MIND_ACT
+  EU_AI_ART10
+  INTL_UNESCO_BIO25
+}
+
+// ==========================
+// Core classes
+// ==========================
+
+class SafetyEnvelope {
+  property consent_required   : bool
+  property retention_window   : Iso8601Duration
+  property jurisdiction       : JurisdictionCode
+  property policy_profile_uri : iri
+  property last_audit_stamp   : timestamp(default=now())
+
+  derived rule enforceRetentionFloor {
+    when jurisdiction == "MIND_ACT"
+    then duration(retention_window) <= duration("PT30M")
+  }
+}
+
+class NeuroSignalChannel {
+  property channel_id                 : uuid
+  property modality                   : NeuroModality
+  property neural_data_classification : NeuralDataClassification
+  property data_sensitivity_tier      : DataSensitivityTier
+  property sampling_rate_hz           : decimal(min=0.0, max=500000.0, precision=9, scale=4)
+  property bit_depth                  : integer(min=1, max=128)
+  property is_encrypted_at_rest       : bool(default=true)
+  property is_encrypted_in_transit    : bool(default=true)
+  property acquisition_device_uri     : iri
+  property data_hash                  : hash(algorithm="blake3")
+  property signature_verified         : bool(default=false)
+  link safety_envelope                : SafetyEnvelope
+
+  meta {
+    auditable       = true
+    versioned       = true
+    serialization   = "rdf+json"
+    validation_level = "strict"
+  }
+
+  derived rule encryptionCompliance {
+    when data_sensitivity_tier in ["neural","critical"]
+    then is_encrypted_at_rest == true and is_encrypted_in_transit == true
+  }
+}
+
+// ==========================
+// EEG specialization
+// ==========================
+
+class EEG_Data_Channel extends NeuroSignalChannel {
+  assert modality == "EEG"
+
+  property electrode_count       : integer(min=1, max=1024)
+  property impedance_ohms        : decimal(min=0.0, max=100000.0, precision=8, scale=2)
+  property montages_supported    : array<string>(unique=true)
+  property reference_scheme      : enum("linked_ears","average_reference","common_reference","laplacian","virtual_ground")
+  property filtering_pipeline_id : iri(optional=true)
+  property calibration_checksum  : hash(algorithm="blake3")
+
+  derived attr effectiveBandwidth : decimal = sampling_rate_hz * 0.45
+
+  meta {
+    class_category = "EEG"
+    quality_profile = "neuroxr:qc:EEGv2"
+  }
+}
+
+// ==========================
+// Governance rules
+// ==========================
+
+rule RequireConsentBeforeCollection {
+  when NeuroSignalChannel.data_sensitivity_tier in ["neural","critical"]
+   and exists(NeuroSignalChannel.safety_envelope)
+  then NeuroSignalChannel.safety_envelope.consent_required == true
+}
+
+rule ValidateRetentionWindow {
+  when duration(SafetyEnvelope.retention_window) > duration("PT30M")
+  warn "Retention window exceeds neurorights-recommended maximum."
+}
+
+rule ValidateHashIntegrity {
+  when defined(NeuroSignalChannel.data_hash)
+  then verify_hash(NeuroSignalChannel.data_hash) == true
+}
+
+// ==========================
+// Individuals (instances)
+// ==========================
+
+individual se_neural_safe as SafetyEnvelope {
+  consent_required   = true
+  retention_window   = "PT20M"
+  jurisdiction       = "MIND_ACT"
+  policy_profile_uri = "https://neuroxr.org/policy/profiles/mindact-v2"
+  last_audit_stamp   = "2025-12-26T18:55:00Z"
+}
+
+individual eeg_chan_neo_01 as EEG_Data_Channel {
+  channel_id                 = "02f9b3e5-cc42-4d42-95ce-fd9b22f9ce61"
+  modality                   = "EEG"
+  neural_data_classification = "direct_cns"
+  data_sensitivity_tier      = "critical"
+  sampling_rate_hz           = 2000.0000
+  bit_depth                  = 32
+  acquisition_device_uri     = "urn:neuroxr:device:eeg-holo-v2:revC"
+  electrode_count            = 256
+  impedance_ohms             = 5800.12
+  montages_supported         = ["10-20","hd-grid","laplacian-map"]
+  reference_scheme           = "virtual_ground"
+  filtering_pipeline_id      = "https://neuroxr.org/qc/pipeline/eeg-hdr-v2"
+  calibration_checksum       = "b3ed4da36913a0ccba39751a8e628b77"
+  safety_envelope            = se_neural_safe
+}
